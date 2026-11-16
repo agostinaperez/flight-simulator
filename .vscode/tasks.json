@@ -1,0 +1,70 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "setup dependencies",
+      "type": "shell",
+      "command": "bash scripts/setup-msys2.sh",
+      "options": {
+        "env": {
+          "MSYSTEM": "MINGW64",
+          "CHERE_INVOKING": "1"
+        },
+        "shell": {
+          "executable": "C:\\msys64\\usr\\bin\\bash.exe",
+          "args": ["-l", "-c"]
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "mingw32-make",
+      "options": {
+        "env": {
+          "MSYSTEM": "MINGW64",
+          "CHERE_INVOKING": "1"
+        },
+        "shell": {
+          "executable": "C:\\msys64\\usr\\bin\\bash.exe",
+          "args": ["-l", "-c"]
+        }
+      },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$gcc"]
+    },
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "mingw32-make run",
+      "options": {
+        "env": {
+          "MSYSTEM": "MINGW64",
+          "CHERE_INVOKING": "1"
+        },
+        "shell": {
+          "executable": "C:\\msys64\\usr\\bin\\bash.exe",
+          "args": ["-l", "-c"]
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "clean",
+      "type": "shell",
+      "command": "mingw32-make clean",
+      "options": {
+        "env": {
+          "MSYSTEM": "MINGW64",
+          "CHERE_INVOKING": "1"
+        },
+        "shell": {
+          "executable": "C:\\msys64\\usr\\bin\\bash.exe",
+          "args": ["-l", "-c"]
+        }
+      },
+      "problemMatcher": []
+    }
+  ]
+}

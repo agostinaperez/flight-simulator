@@ -1,0 +1,86 @@
+#include "InputHandler.h"
+
+#include <GLFW/glfw3.h>
+
+#include <algorithm>
+#include <cmath>
+
+namespace {
+
+constexpr float kSurfaceRate = 1.5f;
+constexpr float kThrottleRate = 0.4f;
+
+} // namespace
+
+InputHandler::InputHandler() {
+    min_elevator_ = glm::radians(-25.0f);
+    max_elevator_ = glm::radians(15.0f);
+    min_aileron_ = glm::radians(-20.0f);
+    max_aileron_ = glm::radians(20.0f);
+    max_rudder_ = glm::radians(30.0f);
+}
+
+void InputHandler::update(GLFWwindow* window, float dt) {
+    // Ignoro tiempos invalidos y limito saltos grandes tras pausas del sistema.
+    const float elapsed = std::isfinite(dt) ? std::clamp(dt, 0.0f, 0.25f) : 0.0f;
+
+    // Las flechas representan el baston: adelante baja la nariz y atras la sube.
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+        controls_.elevator += kSurfaceRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+        controls_.elevator -= kSurfaceRate * elapsed;
+    }
+
+    // Las flechas laterales representan el desplazamiento del baston.
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        controls_.aileron += kSurfaceRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+        controls_.aileron -= kSurfaceRate * elapsed;
+    }
+
+    // A y D controlan el timon; W y S aumentan o reducen la potencia.
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
+        controls_.rudder -= kSurfaceRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+        controls_.rudder += kSurfaceRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+        controls_.throttle += kThrottleRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+        controls_.throttle -= kThrottleRate * elapsed;
+    }
+
+    // Los comandos quedan dentro de los limites del modelo de aeronave.
+    controls_.elevator = std::clamp(controls_.elevator, min_elevator_, max_elevator_);
+    controls_.aileron = std::clamp(controls_.aileron, min_aileron_, max_aileron_);
+    controls_.rudder = std::clamp(controls_.rudder, -max_rudder_, max_rudder_);
+    controls_.throttle = std::clamp(controls_.throttle, 0.0f, 1.0f);
+}
+
+void InputHandler::on_key(int key, int action) {
+    // Los comandos discretos responden una sola vez al presionar la tecla.
+    if (action == GLFW_PRESS && key == GLFW_KEY_SPACE) {
+        paused_ = !paused_;
+    }
+}
+
+void InputHandler::set_controls(const dlfdm::ControlInputs& controls) {
+    controls_ = controls;
+    controls_.elevator = std::clamp(controls_.elevator, min_elevator_, max_elevator_);
+    controls_.aileron = std::clamp(controls_.aileron, min_aileron_, max_aileron_);
+    controls_.rudder = std::clamp(controls_.rudder, -max_rudder_, max_rudder_);
+    controls_.throttle = std::clamp(controls_.throttle, 0.0f, 1.0f);
+}
+
+void InputHandler::set_limits(const dlfdm::AircraftParameters& parameters) {
+    min_elevator_ = parameters.min_elevator;
+    max_elevator_ = parameters.max_elevator;
+    min_aileron_ = parameters.min_aileron;
+    max_aileron_ = parameters.max_aileron;
+    max_rudder_ = parameters.max_rudder;
+    set_controls(controls_);
+}

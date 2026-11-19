@@ -12,3 +12,6 @@ sin modificar sus fuentes:
 
 GLFW, GLM, GCC y Make son paquetes del entorno MSYS2 MINGW64 y se declaran en
 `../dependencies/msys2-packages.txt`.
+
+El FDM `dlfdm` es otra dependencia de codigo fuente, ubicada separadamente en
+`../libs/dlfdm/` para conservar junto a ella su README y licencia MIT.

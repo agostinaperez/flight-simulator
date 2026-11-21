@@ -21,22 +21,33 @@ depende de GLFW ni de OpenGL.
 
 ### Controles
 
-- Flecha abajo: tirar del bastón y elevar el morro mediante el elevador.
-- Flecha arriba: empujar el bastón y bajar el morro.
-- Flechas izquierda/derecha: alabeo mediante los alerones.
-- `A` / `D`: timon de direccion.
-- `W` / `S`: aumentar o reducir potencia.
+- `W` / `S`: baston adelante o atras (bajar o elevar el morro).
+- `A` / `D`: alabeo mediante los alerones.
+- Flecha izquierda / derecha: timon de direccion.
+- Flecha arriba / abajo: aumentar o reducir potencia.
 - `Espacio`: pausar o reanudar la simulacion.
 - Mouse izquierdo y arrastre: orbitar la camara alrededor del avion.
 - Mouse derecho y arrastre: acercar o alejar la camara.
+- `C`: alternar entre las tres vistas (orbital, persecucion, cabina).
 - `F`: alternar el modo de dibujo en alambre.
 - `Escape`: cerrar la ventana.
 
-Los mandos cambian mientras se mantiene la tecla, recorren su rango más rápido
-que antes para facilitar la recuperación de una picada, y quedan limitados por
-los rangos definidos en los parametros de la aeronave. La
-telemetria de altitud, velocidad, pitch, roll y potencia aparece en el titulo
-de la ventana y en la consola.
+Los mandos de las superficies (cabeceo, alabeo y timon) se auto-centran al
+soltar la tecla, volviendo a su posicion de trim; la potencia se mantiene donde
+se la dejo. Cambian mientras se mantiene la tecla, recorren su rango más rápido que antes para facilitar la recuperación de una picada, y quedan limitados por los rangos definidos en los parametros de la aeronave. La
+telemetria de altitud, velocidad, pitch, roll, potencia y vista activa aparece en el titulo de la ventana y en la consola.
+
+## Camara: tres vistas
+
+La camara tiene tres modos que se alternan con la tecla `C`:
+
+- **Orbital:** gira alrededor del avion; el mouse izquierdo orbita y el derecho acerca o aleja.
+- **Persecucion:** sigue al avion desde atras y arriba, montada sobre su
+  orientacion, de modo que acompania los bancos y el loop.
+- **Cabina:** se coloca en el ojo del piloto, mirando al morro, solidaria con la actitud del FDM.
+
+El mouse solo afecta a la vista orbital; las otras dos quedan fijas a la
+aeronave. Al redimensionar la ventana la proyeccion se recalcula en las tres vistas por igual.
 
 ## Contacto con el terreno
 
@@ -62,6 +73,6 @@ mingw32-make clean
 
 `make test` comprueba la conversion NED/OpenGL, los limites y pausa de mandos,
 la respuesta del FDM al aleron y al elevador, el contacto sobre la triangulacion
-del terreno y la estabilidad del trim durante 60 segundos.
+del terreno, la estabilidad del trim durante 60 segundos y las tres vistas de camara (orbital, persecucion y cabina, incluido el redimensionado).
 Las dependencias de terceros se documentan en `third_party/README.md`; la
 dependencia `dlfdm` conserva su propio README y licencia en `libs/dlfdm/`.

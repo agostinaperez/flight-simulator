@@ -1,3 +1,4 @@
+#include "CameraSystem.h"
 #include "FlightData.h"
 #include "GroundContact.h"
 #include "InputHandler.h"
@@ -5,6 +6,8 @@
 #include <GLFW/glfw3.h>
 #include <dlfdm/fdmsolver.h>
 #include <dlfdm/models/aircraft/jettrainer.h>
+
+#include <glm/gtc/matrix_inverse.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -171,6 +174,124 @@ int main() {
     if (!std::isfinite(pull_up_solver.getState().theta) ||
         pull_up_solver.getState().theta <= 0.0f) {
         std::cerr << "El elevador hacia arriba no genero cabeceo positivo.\n";
+        return 1;
+    }
+
+    // --- Sistema de camaras: tres vistas y redimensionado ---------------------
+    // Helpers para extraer de la matriz de VISTA la posicion del ojo y la
+    // direccion a la que mira la camara (el -Z del espacio de camara, llevado
+    // al mundo con la inversa de la vista).
+    auto eye = [](const glm::mat4& view) {
+        return glm::vec3(glm::inverse(view)[3]);
+    };
+    auto dir_vista = [](const glm::mat4& view) {
+        return glm::vec3(glm::inverse(view) * glm::vec4(0.0f, 0.0f, -1.0f, 0.0f));
+    };
+
+    // Avion recto y nivelado: orientacion identidad, morro hacia -Z.
+    const FlightData actitud{};
+    const glm::mat4 orientacion = orientacion_vuelo(actitud);
+    const glm::vec3 pos(100.0f, 5000.0f, -50.0f);
+    const glm::vec3 morro(0.0f, 0.0f, -1.0f);
+
+    CameraSystem camara(1280, 720);
+    if (camara.mode() != CameraMode::Orbital) {
+        std::cerr << "La camara no arranca en vista orbital.\n";
+        return 1;
+    }
+
+    // Vista orbital: la camara mira al avion (su forward apunta hacia el avion).
+    camara.update(pos, orientacion, CameraCommand{});
+    {
+        const glm::vec3 hacia_avion = glm::normalize(
+            pos - eye(camara.data().view));
+        const glm::vec3 vista = glm::normalize(dir_vista(camara.data().view));
+        if (glm::dot(vista, hacia_avion) < 0.99f) {
+            std::cerr << "La vista orbital no apunta al avion.\n";
+            return 1;
+        }
+    }
+
+    // Vista de persecucion: la camara queda atras del avion y mira hacia delante.
+    camara.cycle_mode();
+    if (camara.mode() != CameraMode::Chase) {
+        std::cerr << "cycle_mode no avanzo a la vista de persecucion.\n";
+        return 1;
+    }
+    camara.update(pos, orientacion, CameraCommand{});
+    {
+        const glm::vec3 hacia_camara = eye(camara.data().view) - pos;
+        if (glm::dot(hacia_camara, morro) >= 0.0f) {
+            std::cerr << "La vista de persecucion no queda detras del avion.\n";
+            return 1;
+        }
+        const glm::vec3 vista = glm::normalize(dir_vista(camara.data().view));
+        if (glm::dot(vista, morro) < 0.5f) {
+            std::cerr << "La vista de persecucion no mira hacia delante.\n";
+            return 1;
+        }
+    }
+
+    // Vista de cabina: el ojo queda dentro de la aeronave y mira al morro.
+    camara.cycle_mode();
+    if (camara.mode() != CameraMode::Cockpit) {
+        std::cerr << "cycle_mode no avanzo a la vista de cabina.\n";
+        return 1;
+    }
+    camara.update(pos, orientacion, CameraCommand{});
+    {
+        if (glm::distance(eye(camara.data().view), pos) > 3.0f) {
+            std::cerr << "La vista de cabina no queda dentro de la aeronave.\n";
+            return 1;
+        }
+        const glm::vec3 vista = glm::normalize(dir_vista(camara.data().view));
+        if (glm::dot(vista, morro) < 0.99f) {
+            std::cerr << "La vista de cabina no mira hacia el morro.\n";
+            return 1;
+        }
+    }
+
+    // Con una actitud de maniobra (cabeceo y alabeo) las vistas de persecucion y
+    // cabina siguen definidas: ninguna matriz de vista queda con entradas no
+    // finitas (la orientacion nunca alinea morro con arriba, ver decision [4]).
+    {
+        FlightData giro{};
+        giro.theta = 0.7f;
+        giro.phi = 0.6f;
+        const glm::mat4 orient_giro = orientacion_vuelo(giro);
+
+        // Cabina (modo actual) con actitud de maniobra.
+        camara.update(pos, orient_giro, CameraCommand{});
+        // Persecucion con actitud de maniobra.
+        camara.cycle_mode();  // Cockpit -> Orbital
+        camara.cycle_mode();  // Orbital -> Chase
+        camara.update(pos, orient_giro, CameraCommand{});
+
+        const glm::mat4 view = camara.data().view;
+        for (int fila = 0; fila < 4; ++fila) {
+            for (int col = 0; col < 4; ++col) {
+                if (!std::isfinite(view[fila][col])) {
+                    std::cerr << "Una vista quedo indefinida durante la maniobra.\n";
+                    return 1;
+                }
+            }
+        }
+    }
+
+    // cycle_mode recorre las tres vistas y vuelve al principio.
+    camara.cycle_mode();  // Chase -> Cockpit
+    camara.cycle_mode();  // Cockpit -> Orbital
+    if (camara.mode() != CameraMode::Orbital) {
+        std::cerr << "cycle_mode no volvio a la vista orbital.\n";
+        return 1;
+    }
+
+    // Redimensionado: la proyeccion actualiza el aspect con el nuevo tamaño.
+    camara.set_viewport(640, 480);
+    const float aspect = camara.data().projection[1][1] /
+                         camara.data().projection[0][0];
+    if (!cerca(aspect, 640.0f / 480.0f, 1.0e-4f)) {
+        std::cerr << "El redimensionado no actualizo el aspect de la proyeccion.\n";
         return 1;
     }
 

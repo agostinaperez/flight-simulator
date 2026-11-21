@@ -58,7 +58,7 @@ run: $(TARGET)
 TEST_TARGET := $(BIN_DIR)/flight-integration-test.exe
 TEST_OBJECT := $(BUILD_DIR)/tests/flight_integration_test.o
 
-$(TEST_TARGET): $(TEST_OBJECT) $(BUILD_DIR)/src/common/InputHandler.o $(BUILD_DIR)/src/common/GroundContact.o $(BUILD_DIR)/src/common/Terrain.o $(DLFDM_OBJECTS)
+$(TEST_TARGET): $(TEST_OBJECT) $(BUILD_DIR)/src/common/InputHandler.o $(BUILD_DIR)/src/common/GroundContact.o $(BUILD_DIR)/src/common/Terrain.o $(BUILD_DIR)/src/common/CameraSystem.o $(DLFDM_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $^ -o $@ $(LDLIBS)
 

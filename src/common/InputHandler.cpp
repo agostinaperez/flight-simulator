@@ -8,6 +8,7 @@
 namespace {
 
 constexpr float kSurfaceRate = 1.5f;
+constexpr float kCenteringRate = 1.5f;
 constexpr float kThrottleRate = 0.4f;
 
 } // namespace
@@ -24,34 +25,62 @@ void InputHandler::update(GLFWwindow* window, float dt) {
     // Ignoro tiempos invalidos y limito saltos grandes tras pausas del sistema.
     const float elapsed = std::isfinite(dt) ? std::clamp(dt, 0.0f, 0.25f) : 0.0f;
 
-    // Las flechas representan el baston: adelante baja la nariz y atras la sube.
-    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
+    // WASD es el baston: W empuja (morro abajo), S tira (morro arriba).
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         controls_.elevator += kSurfaceRate * elapsed;
     }
-    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
         controls_.elevator -= kSurfaceRate * elapsed;
     }
 
-    // Las flechas laterales representan el desplazamiento del baston.
-    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+    // A y D desplazan el baston lateralmente (alabeo).
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
         controls_.aileron += kSurfaceRate * elapsed;
     }
-    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
         controls_.aileron -= kSurfaceRate * elapsed;
     }
 
-    // A y D controlan el timon; W y S aumentan o reducen la potencia.
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-        controls_.rudder -= kSurfaceRate * elapsed;
-    }
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
+    // Las flechas laterales mueven el timon; arriba/abajo cambian la potencia.
+    if (glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS) {
         controls_.rudder += kSurfaceRate * elapsed;
     }
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS) {
+        controls_.rudder -= kSurfaceRate * elapsed;
+    }
+    if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
         controls_.throttle += kThrottleRate * elapsed;
     }
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
+    if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
         controls_.throttle -= kThrottleRate * elapsed;
+    }
+
+    // Auto-centrado: las superficies vuelven al neutro al soltar su tecla.
+    // La potencia NO se centra: se mantiene donde el piloto la dejo.
+    auto centrar = [&](float& mando, float neutro) {
+        if (std::abs(mando - neutro) <= kCenteringRate * elapsed) {
+            mando = neutro;
+        } else {
+            mando += (mando > neutro ? -1.0f : 1.0f) * kCenteringRate * elapsed;
+        }
+    };
+    const bool elevator_mantenido =
+        glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
+    if (!elevator_mantenido) {
+        centrar(controls_.elevator, neutral_.elevator);
+    }
+    const bool aileron_mantenido =
+        glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+    if (!aileron_mantenido) {
+        centrar(controls_.aileron, neutral_.aileron);
+    }
+    const bool rudder_mantenido =
+        glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS ||
+        glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS;
+    if (!rudder_mantenido) {
+        centrar(controls_.rudder, neutral_.rudder);
     }
 
     // Los comandos quedan dentro de los limites del modelo de aeronave.
@@ -74,6 +103,10 @@ void InputHandler::set_controls(const dlfdm::ControlInputs& controls) {
     controls_.aileron = std::clamp(controls_.aileron, min_aileron_, max_aileron_);
     controls_.rudder = std::clamp(controls_.rudder, -max_rudder_, max_rudder_);
     controls_.throttle = std::clamp(controls_.throttle, 0.0f, 1.0f);
+}
+
+void InputHandler::set_neutral(const dlfdm::ControlInputs& neutral) {
+    neutral_ = neutral;
 }
 
 void InputHandler::set_limits(const dlfdm::AircraftParameters& parameters) {

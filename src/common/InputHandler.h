@@ -22,8 +22,13 @@ public:
     void set_controls(const dlfdm::ControlInputs& controls);
     void set_limits(const dlfdm::AircraftParameters& parameters);
 
+    // Fija el neutro (posicion de trim) al que vuelven las superficies cuando
+    // se suelta la tecla. La potencia no se auto-centra: queda donde se la deja.
+    void set_neutral(const dlfdm::ControlInputs& neutral);
+
 private:
     dlfdm::ControlInputs controls_{};  // Controles actuales; inicia todo en cero.
+    dlfdm::ControlInputs neutral_{};   // Referencia de neutro (trim).
     float min_elevator_ = 0.0f;
     float max_elevator_ = 0.0f;
     float min_aileron_ = 0.0f;

@@ -6,14 +6,16 @@
 #include <cmath>
 
 namespace {
+//las velocidades se multiplican x el elapsed time
 
-constexpr float kSurfaceRate = 1.5f;
-constexpr float kCenteringRate = 1.5f;
-constexpr float kThrottleRate = 0.4f;
+constexpr float kSurfaceRate = 1.1f; //velocidad a la q las teclas mueven elevador, alerones y timon
+constexpr float kCenteringRate = 1.5f; //velocidad a lo q esos mandos vuelven a la posicion neutral al soltar las teclas
+constexpr float kThrottleRate = 0.5f; //velocidad a la q cambia la potencia
 
-} // namespace
+} // namespace sin nombre para q solo se usen en este archivo
 
-InputHandler::InputHandler() {
+InputHandler::InputHandler() { //configuro los límites iniciales de los mandos, pasando de grados a radianes. 
+    //set_limits puede sobreescribir esto
     min_elevator_ = glm::radians(-25.0f);
     max_elevator_ = glm::radians(15.0f);
     min_aileron_ = glm::radians(-20.0f);
@@ -21,10 +23,14 @@ InputHandler::InputHandler() {
     max_rudder_ = glm::radians(30.0f);
 }
 
+//lo llamo 1 vez por cada cuadro
 void InputHandler::update(GLFWwindow* window, float dt) {
-    // Ignoro tiempos invalidos y limito saltos grandes tras pausas del sistema.
+    //dt es el tiempo transcurrido desde el cuadro anterior, en segundos. Me fijo q sea válido, y limito saltos bruscos
+    //en los mandos desp de por ejemplo una pausa
     const float elapsed = std::isfinite(dt) ? std::clamp(dt, 0.0f, 0.25f) : 0.0f;
 
+    //USO LOS CONTROLS DE LA LIBRERÍA dlfdm
+    
     // WASD es el baston: W empuja (morro abajo), S tira (morro arriba).
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
         controls_.elevator += kSurfaceRate * elapsed;
@@ -55,30 +61,28 @@ void InputHandler::update(GLFWwindow* window, float dt) {
         controls_.throttle -= kThrottleRate * elapsed;
     }
 
-    // Auto-centrado: las superficies vuelven al neutro al soltar su tecla.
-    // La potencia NO se centra: se mantiene donde el piloto la dejo.
-    auto centrar = [&](float& mando, float neutro) {
+    // Auto-centrado: las superficies vuelven al neutro al soltar su tecla. La potencia NO se centra: se mantiene donde el piloto la dejo.
+    //[&] es la función de captura de la lambda, e indica q puede usar variables locales de entorno por referencia, como
+    //en este caso el elapsed. auto deja q c++ deduzca el tipo de la lambda
+    auto centrar = [&](float& mando, float neutro) { //mando es una referencia, o sea puede modificar el control original
+        //me fijo si estoy lo suficientemente cerca del neutro como para fijarlo ahí. Si sí, lo hago. Sino, lo voy acercando de a poco
         if (std::abs(mando - neutro) <= kCenteringRate * elapsed) {
             mando = neutro;
         } else {
             mando += (mando > neutro ? -1.0f : 1.0f) * kCenteringRate * elapsed;
         }
     };
-    const bool elevator_mantenido =
-        glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS ||
-        glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
+    const bool elevator_mantenido = glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS;
     if (!elevator_mantenido) {
         centrar(controls_.elevator, neutral_.elevator);
     }
-    const bool aileron_mantenido =
-        glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS ||
-        glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
+
+    const bool aileron_mantenido = glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS;
     if (!aileron_mantenido) {
         centrar(controls_.aileron, neutral_.aileron);
     }
-    const bool rudder_mantenido =
-        glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS ||
-        glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS;
+
+    const bool rudder_mantenido = glfwGetKey(window, GLFW_KEY_LEFT) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS;
     if (!rudder_mantenido) {
         centrar(controls_.rudder, neutral_.rudder);
     }

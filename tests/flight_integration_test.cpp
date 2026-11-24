@@ -1,7 +1,8 @@
-#include "CameraSystem.h"
-#include "FlightData.h"
-#include "GroundContact.h"
-#include "InputHandler.h"
+#include "common/CameraSystem.h"
+#include "common/FlightData.h"
+#include "common/GroundContact.h"
+#include "common/Hud.h"
+#include "common/InputHandler.h"
 
 #include <GLFW/glfw3.h>
 #include <dlfdm/fdmsolver.h>
@@ -293,6 +294,107 @@ int main() {
     if (!cerca(aspect, 640.0f / 480.0f, 1.0e-4f)) {
         std::cerr << "El redimensionado no actualizo el aspect de la proyeccion.\n";
         return 1;
+    }
+
+    // --- HUD: fuente y geometria (CPU puro, sin OpenGL) ------------------------
+    // La fuente cubre digitos y mayusculas, pero no minusculas.
+    {
+        float u0, v0, du, dv;
+        if (!hud::glyph_uv('A', u0, v0, du, dv) ||
+            !hud::glyph_uv('0', u0, v0, du, dv) ||
+            hud::glyph_uv('a', u0, v0, du, dv)) {
+            std::cerr << "La fuente del HUD no cubre el conjunto esperado.\n";
+            return 1;
+        }
+        if (!cerca(hud::glyph_advance('0'), 6.0f, 1.0e-5f) ||
+            hud::atlas_width() <= 0 || hud::atlas_height() <= 0) {
+            std::cerr << "Las metricas de la fuente son invalidas.\n";
+            return 1;
+        }
+        if (du <= 0.0f || dv <= 0.0f || u0 < 0.0f || v0 < 0.0f || u0 + du > 1.0f) {
+            std::cerr << "El UV de un glifo queda fuera del atlas.\n";
+            return 1;
+        }
+        // El atlas tiene el tamano justo para todos los glifos (RGBA).
+        const ImageData atlas = hud::build_atlas();
+        if (atlas.width != hud::atlas_width() ||
+            atlas.height != hud::atlas_height() ||
+            atlas.pixels.size() != static_cast<std::size_t>(atlas.width) *
+                                  static_cast<std::size_t>(atlas.height) * 4U) {
+            std::cerr << "El atlas de la fuente no tiene el tamano esperado.\n";
+            return 1;
+        }
+        // El glifo '0' deja tinta (alfa > 0) en alguna celda del atlas.
+        bool tinta = false;
+        for (std::size_t p = 3; p < atlas.pixels.size(); p += 4) {
+            if (atlas.pixels[p] != 0) {
+                tinta = true;
+                break;
+            }
+        }
+        if (!tinta) {
+            std::cerr << "El atlas de la fuente quedo vacio.\n";
+            return 1;
+        }
+    }
+
+    // format_number usa '.' como separador decimal.
+    if (hud::format_number(150.0f, 0) != "150" ||
+        hud::format_number(2.5f, 1) != "2.5" ||
+        hud::format_number(-3.0f, 0) != "-3") {
+        std::cerr << "El formato de numeros del HUD es incorrecto.\n";
+        return 1;
+    }
+
+    // build_text genera un glifo por caracter y avanza el cursor.
+    {
+        std::vector<hud::Glyph> glifos;
+        hud::build_text("150", glm::vec2(0.0f, 0.0f), 2.0f,
+                        glm::vec3(0.0f, 1.0f, 0.0f), glifos);
+        if (glifos.size() != 3U) {
+            std::cerr << "build_text no genero un glifo por caracter.\n";
+            return 1;
+        }
+        if (!cerca(glifos[1].pos.x - glifos[0].pos.x, 12.0f, 1.0e-4f)) {
+            std::cerr << "El cursor del texto no avanza el ancho esperado.\n";
+            return 1;
+        }
+    }
+
+    // build_hud genera lineas y glifos finitos, con el horizonte en el centro.
+    {
+        HudState hs;
+        hs.pitch_deg = 0.0f;
+        hs.roll_deg = 0.0f;
+        hs.heading_deg = 90.0f;
+        hs.altitude_m = 5000.0f;
+        hs.speed_ms = 150.0f;
+        hs.vspeed_ms = 1.5f;
+
+        std::vector<hud::Line> lineas;
+        std::vector<hud::Glyph> glifos;
+        hud::build_hud(hs, 1280, 720, lineas, glifos);
+
+        if (lineas.empty() || glifos.empty()) {
+            std::cerr << "build_hud no genero geometria.\n";
+            return 1;
+        }
+        bool hay_horizonte = false;
+        for (const hud::Line& l : lineas) {
+            if (!std::isfinite(l.a.x) || !std::isfinite(l.a.y) ||
+                !std::isfinite(l.b.x) || !std::isfinite(l.b.y)) {
+                std::cerr << "Una linea del HUD quedo con coordenadas no finitas.\n";
+                return 1;
+            }
+            // El horizonte (pitch 0, roll 0) es una linea horizontal en y = 360.
+            if (cerca(l.a.y, 360.0f, 1.0f) && cerca(l.b.y, 360.0f, 1.0f)) {
+                hay_horizonte = true;
+            }
+        }
+        if (!hay_horizonte) {
+            std::cerr << "El indicador de actitud no dibujo la linea del horizonte.\n";
+            return 1;
+        }
     }
 
     std::cout << "OK: mandos limitados, contacto con terreno, respuesta de "

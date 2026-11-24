@@ -23,6 +23,7 @@
 #include "common/CameraSystem.h"
 #include "common/FlightData.h"
 #include "common/GroundContact.h"
+#include "common/Hud.h"
 #include "common/InputHandler.h"
 #include "common/Material.h"
 #include "common/Primitives.h"
@@ -47,6 +48,7 @@ constexpr double kMaxTiempoPorCuadro = 0.25;
 constexpr double kIntervaloTelemetria = 0.25;
 // Factor que convierte el tamano normalizado del modelo visual a metros.
 // Solo escala la representacion dibujada; no cambia el tamano del avion del FDM.
+//PASO DE LA ESCALA NORMALIZADA DEL MUNDO A UNA ESCALA ADECUADA PARA LA ESCENA. o sea ocupa 8 unidades del mundo (Metros)
 constexpr float kEscalaAvionMetros = 8.0f;
 // La base del terreno se coloca esta distancia debajo de la altura inicial.
 // Es una referencia visual fija, no una elevacion geografica real.
@@ -355,6 +357,14 @@ int main() {
                 recursos.load_shader_source(
                     "fondo", "shaders/background.vs",
                     "shaders/background_lit.fs");
+            const ShaderSource& fuente_hud_lineas =
+                recursos.load_shader_source(
+                    "hud_lineas", "shaders/hud_lines.vs",
+                    "shaders/hud_lines.fs");
+            const ShaderSource& fuente_hud_texto =
+                recursos.load_shader_source(
+                    "hud_texto", "shaders/hud_text.vs",
+                    "shaders/hud_text.fs");
             // Codigo GLSL compartido por los fragment shaders de la escena.
             const std::string& iluminacion_comun =
                 recursos.load_text("iluminacion", "shaders/iluminacion.glsl");
@@ -446,6 +456,14 @@ int main() {
             if (!shaders_correctos) {
                 throw std::runtime_error(
                     "No se pudieron compilar todos los shaders de la escena.");
+            }
+
+            // El HUD dibuja los instrumentos sobre la escena. Se compila con sus
+            // propios shaders (lineas y texto instanciados) y arma su fuente bitmap.
+            Hud hud;
+            if (!hud.init(fuente_hud_lineas, fuente_hud_texto)) {
+                throw std::runtime_error(
+                    "No se pudieron compilar los shaders del HUD.");
             }
 
             // Convierte el estado inicial NED a coordenadas de la escena OpenGL.
@@ -581,6 +599,18 @@ int main() {
                     mundo.position, orientacion,
                     leer_comando_camara(ventana, aplicacion));
 
+                // Convierte el estado del FDM a los instrumentos del HUD (grados,
+                // metros y m/s). La velocidad vertical sale de la derivada NED
+                // (z apunta hacia abajo, por eso se niega para "sube = positivo").
+                HudState hud_estado;
+                hud_estado.pitch_deg   = glm::degrees(estado.theta);
+                hud_estado.roll_deg    = glm::degrees(estado.phi);
+                hud_estado.heading_deg = glm::degrees(estado.psi);
+                hud_estado.altitude_m  = -estado.inertial_position.z;
+                hud_estado.speed_ms    = glm::length(estado.body_velocity);
+                hud_estado.vspeed_ms   = -fdm.get_state_dot().ned_position_dot.z;
+                hud.set_state(hud_estado);
+
                 // La telemetria se refresca cada intervalo, no necesariamente en cada frame.
                 tiempo_telemetria += frame_dt;
                 if (tiempo_telemetria >= kIntervaloTelemetria) {
@@ -674,6 +704,13 @@ int main() {
                         GL_TRIANGLES, pieza.mesh->count(),
                         GL_UNSIGNED_INT, nullptr);
                 }
+
+                // El HUD se dibuja ULTIMO, en una segunda pasada con proyeccion
+                // ortografica en pixeles: queda siempre por encima de la escena.
+                int fb_w = 0;
+                int fb_h = 0;
+                glfwGetFramebufferSize(ventana, &fb_w, &fb_h);
+                hud.draw(fb_w, fb_h);
 
                 // Presenta el frame terminado y alterna el buffer visible.
                 glfwSwapBuffers(ventana);

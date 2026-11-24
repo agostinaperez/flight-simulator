@@ -1,4 +1,3 @@
-// Primitives.cpp
 // Este archivo NO toca OpenGL: solo fabrica números (Vertex + índices) en la RAM.
 
 #include "Primitives.h"                
@@ -8,11 +7,8 @@
 #include <vector>                     // std::vector (vía MeshData.h, igual)
 
 namespace primitives {
-
-// pi: la constante con la precisión doble que uso para pasar grados a radianes.
-// Es una constante LOCAL del archivo (namespace anónimo: no se exporta).
 namespace {
-constexpr double kPi = 3.14159265358979323846;   // π con 18 decimales
+constexpr double kPi = 3.14159265358979323846;   // π con 18 decimales, cte local del archivo q uso para pasar grados a radianes
 }
 
 MeshData cube(float scale_x, float scale_y, float scale_z) { 
@@ -28,9 +24,7 @@ MeshData cube(float scale_x, float scale_y, float scale_z) {
     // Tabla de las 6 caras. Cada fila define UNA cara con:
     //   normal : hacia dónde "mira" la cara (afuera del cubo).
     //   u, v   : dos direcciones TANGENTES al plano de la cara, con las que se arman las esquinas. Se eligen de forma que u × v = normal
-    //   así, recorriendo las esquinas en el  orden que uso abajo, el sentido queda ANTIHORARIO visto desde afuera.
-    //   (PRÁCTICO 3: el color de antes se eliminó — el color ya no es del vértice).
-    
+    //   así, recorriendo las esquinas en el  orden que uso abajo, el sentido queda ANTIHORARIO visto desde afuera.    
     struct Cara {                       // un registro local por cara
         float nx, ny, nz;               //   la normal (afuera)
         float ux, uy, uz;               //   tangente "horizontal" de la cara

@@ -22,6 +22,8 @@ COMMON_SOURCES := \
 	src/common/Aircraft.cpp \
 	src/common/CameraSystem.cpp \
 	src/common/GroundContact.cpp \
+	src/common/Hud.cpp \
+	src/common/HudGeometry.cpp \
 	src/common/InputHandler.cpp \
 	src/common/Mesh.cpp \
 	src/common/Primitives.cpp \
@@ -58,7 +60,7 @@ run: $(TARGET)
 TEST_TARGET := $(BIN_DIR)/flight-integration-test.exe
 TEST_OBJECT := $(BUILD_DIR)/tests/flight_integration_test.o
 
-$(TEST_TARGET): $(TEST_OBJECT) $(BUILD_DIR)/src/common/InputHandler.o $(BUILD_DIR)/src/common/GroundContact.o $(BUILD_DIR)/src/common/Terrain.o $(BUILD_DIR)/src/common/CameraSystem.o $(DLFDM_OBJECTS)
+$(TEST_TARGET): $(TEST_OBJECT) $(BUILD_DIR)/src/common/InputHandler.o $(BUILD_DIR)/src/common/GroundContact.o $(BUILD_DIR)/src/common/Terrain.o $(BUILD_DIR)/src/common/CameraSystem.o $(BUILD_DIR)/src/common/HudGeometry.o $(DLFDM_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $^ -o $@ $(LDLIBS)
 
